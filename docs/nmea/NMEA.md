@@ -106,10 +106,20 @@ The LED is indicating that the synchronization is in progress:
 
 [![Board](../4-digit/v2/4-digit-v2-board.jpg)](../4-digit/v2/4-digit-v2-board.jpg)
 
+<details>
+  <summary><b>WeMos+prototype switch</b></summary>
+
 [![WeMos D1 Mini 2](images_v2/wemos_d1_mini-v2-2.jpg)](images_v2/wemos_d1_mini-v2-2.jpg)
 
 [![WeMos D1 Mini 1](images_v2/wemos_d1_mini-v2-1.jpg)](images_v2/wemos_d1_mini-v2-1.jpg)
+</details>
 
+<details>
+  <summary><b>WeMos+PCB switch</b></summary>
+[![WeMos D1 Mini PCB 1](images_v2/wemos_d1_mini-v2-pcb-1.jpg)](images_v2/wemos_d1_mini-v2-1.jpg)
+
+[![WeMos D1 Mini PCB 2](images_v2/wemos_d1_mini-v2-pcb-1.jpg)](images_v2/wemos_d1_mini-v2-1.jpg)
+</details>
 </details>
 
 ## Uploading code in Arduino Studio
