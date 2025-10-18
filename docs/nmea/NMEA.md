@@ -116,9 +116,10 @@ The LED is indicating that the synchronization is in progress:
 
 <details>
   <summary><b>WeMos+PCB switch</b></summary>
-[![WeMos D1 Mini PCB 1](images_v2/wemos_d1_mini-v2-pcb-1.jpg)](images_v2/wemos_d1_mini-v2-1.jpg)
 
-[![WeMos D1 Mini PCB 2](images_v2/wemos_d1_mini-v2-pcb-1.jpg)](images_v2/wemos_d1_mini-v2-1.jpg)
+[![WeMos D1 Mini PCB 1](images_v2/wemos_d1_mini-v2-pcb-1.JPG)](images_v2/wemos_d1_mini-v2-1.JPG)
+
+[![WeMos D1 Mini PCB 2](images_v2/wemos_d1_mini-v2-pcb-1.JPG)](images_v2/wemos_d1_mini-v2-1.JPG)
 </details>
 </details>
 

@@ -13,7 +13,10 @@
 
 The device is based on the version without the music chip - in this version, the MCU has enough free pins to connect additional segments and an NMEA device. 
 
-[![schematic](v1/schematic/6-digit-v1.jpg)](schematic/6-digit-v1.jpg)
+<details>
+    <summary>Version 1, prototype</summary>
+
+<IMG src="v1/schematic/6-digit-v1.jpg" alt="V2 schematic"/>
 
 Additional segments are connected to **pins 21 (P3.6)** and **22 (P3.7)** of the MCU. 
 The S2 button was originally connected to **pin 15 (P.3)**, but I had to connect to the **pin 7 (P1.4)** instead. The reason for this was that I wanted to receive data from an NMEA device on **pin 15 (P3.0)**. This mapping occurs when the constant `MAP_SW2_TO_P1_4` is defined.
@@ -23,6 +26,14 @@ The S2 button was originally connected to **pin 15 (P.3)**, but I had to connect
 I wanted the NMEA device to be on only during the synchronization process. To achieve this, I added a transistor switch (Q7 on the schematic) connected to **pin 6 (P1.3)**. There is also an LED (D1) indicating that the NMEA device is on. 
 
 The rest of the schematic is as original.
+</details>
+
+<details>
+    <summary>Version 2</summary>
+    
+  <IMG src="v2/images/6-digit-v2-schematic.png" alt="V2 schematic"/>
+
+</details>
 
 ## Board
 
@@ -44,9 +55,9 @@ The original board was extended with a piece of a prototyping board on which add
 
   For the second version, proper PCBs have been designed.
 
-  <IMG src="v2/images/6-digit-v2-board-1.jpg" alt="Board 1"/>
-  <IMG src="v2/images/6-digit-v2-board-2.jpg" alt="Board 1"/>
-  <IMG src="v2/images/6-digit-v2-board-3.jpg" alt="Board 1"/>
+  <IMG src="v2/images/6-digit-v2-board-1.JPG" alt="Board 1"/>
+  <IMG src="v2/images/6-digit-v2-board-2.JPG" alt="Board 1"/>
+  <IMG src="v2/images/6-digit-v2-board-3.JPG" alt="Board 1"/>
 </details>
 
 
