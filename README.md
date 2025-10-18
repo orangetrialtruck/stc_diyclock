@@ -6,7 +6,7 @@ Firmware replacement for STC15 MCU-based DIY Clock Kit available on banggood, al
 <p align="center" width="100%">
 <img src="images/4d-front.jpg" width="85%"><br>
 <img style="padding-top: 5px;padding-bottom: 2px;" width="16%" src="images/arrow.png"/><br>
-<img src="docs/6-digit/v1/images/6d-front-4.jpg">
+<img src="docs/6-digit/v2/images/6-digits+BCD.jpg">
 </p>
 
 ## Intro
@@ -19,13 +19,17 @@ This repo is forked from [https://github.com/zerog2k/stc_diyclock](https://githu
 > If your version is different from mine, please consider using the original repo instead.
 
 ## Quick links
-- [6 digit (HH:MM:SS) modification](docs/6-digit/v1/6-digit.md)
+- [6 digit (HH:MM:SS) modification](docs/6-digit/6-digit.md)
+- [Binary-coded decimal clock](docs/bcd/BCD.md)
 - [Time synchronization (GPS / NTP)](docs/nmea/NMEA.md)
 - [New firmware operation flow  (4 digit)](docs/4-digit-clock-operational-flow.png)
 
 ## Changelog
 ### June 2025:
 - Added the ability to adjust display brightness
+
+### August 2025:
+- BCD (Binary-coded decimal) clock
 
 ### December 2024:
  - Updated ESP8266 script for NTP synchronization
@@ -36,7 +40,7 @@ This repo is forked from [https://github.com/zerog2k/stc_diyclock](https://githu
   
 ### November 2024:
 
-- Added support for the [6-digit (HH:MM:SS)](docs/6-digit/v1/6-digit.md) version
+- Added support for the [6-digit (HH:MM:SS)](docs/6-digit/6-digit.md) version
 - Updated documentation
 - The firmware was tested for both 4-digit and 6-digit version
 
@@ -62,8 +66,10 @@ This repo is forked from [https://github.com/zerog2k/stc_diyclock](https://githu
 | Alarm with snooze | Yes | WITHOUT_ALARM |
 | Hourly chime | Yes | WITHOUT_CHIME |
 | [Time synchronization](docs/nmea/NMEA.md) via GPS or NTP protocol | No | WITH_NMEA, WITH_NMEA_DEVICE_SWITCH |
-| [6 digit (HH:MM:SS) version](docs/6-digit/v1/6-digit.md) support | No | SIX_DIGITS |
+| [6 digit (HH:MM:SS) version](docs/6-digit/6-digit.md) support | No | SIX_DIGITS |
 | Inactivity timer | Yes | WITHOUT_INACTIVITY_TIMER |
+| [BCD clock](docs/bcd/BCD.md) support | No | BCD_DISPLAY |
+
 
 Most features can be enabled or disabled using the corresponding compilation constants.
 
