@@ -140,6 +140,9 @@ uint8_t dotsBuffer;
 uint8_t frameBuffer[NUMBER_OF_DIGITS];
 // Each item contains a symbol to display
 uint8_t displayBuffer[NUMBER_OF_DIGITS];
+#ifdef REDUCE_DOTS_BRIGHTNESS
+uint8_t dotsDisplayBuffer[NUMBER_OF_DIGITS];
+#endif
 
 inline uint8_t isDotVisible(uint8_t pos) { return dotsBuffer & (1 << pos); }
 
@@ -156,22 +159,32 @@ void clearFrameBuffer() {
   dotsBuffer = 0;
   for (uint8_t n = 0; n != NUMBER_OF_DIGITS; n++) {
     frameBuffer[n] = LED_BLANK;
+    #ifdef REDUCE_DOTS_BRIGHTNESS
+    dotsDisplayBuffer[n] = ledSymbols[LED_BLANK];
+    #endif
   }
 }
 
 inline void updateDisplayBuffer() {
   for (uint8_t n = 0; n != NUMBER_OF_DIGITS; n++) {
-    uint8_t tmp;
-    if (2 == n || n == 4) {
-      tmp = ledSymbolsRev[frameBuffer[n]];
-      if (isDotVisible(n)) {
-        tmp &= LED_dp_mask_rev;
-      }
+    const uint8_t *symbols;
+    uint8_t dotMask;
+
+    if (2 == n || 4 == n) {
+      symbols = ledSymbolsRev;
+      dotMask = LED_dp_mask_rev;
     } else {
-      tmp = ledSymbols[frameBuffer[n]];
-      if (isDotVisible(n)) {
-        tmp &= LED_dp_mask;
-      }
+      symbols = ledSymbols;
+      dotMask = LED_dp_mask;
+    }
+
+    uint8_t tmp = symbols[frameBuffer[n]];
+    if (isDotVisible(n)) {
+#ifdef REDUCE_DOTS_BRIGHTNESS
+      dotsDisplayBuffer[n] = dotMask;
+#else
+      tmp &= dotMask;
+#endif
     }
 
     displayBuffer[n] = tmp;

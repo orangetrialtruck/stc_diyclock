@@ -43,7 +43,7 @@
 #define BRIGHTNESS_LOW_DEFAULT_VALUE    0x24
 #define BRIGHTNESS_LOW_MAX_VALUE        0x46
 #define BRIGHTNESS_NIGHT_DEFAULT_VALUE  0x34
-#define BRIGHTNESS_NIGHT_MAX_VALUE      0x71
+#define BRIGHTNESS_NIGHT_MAX_VALUE      0xaa
 #define LIGHT_SENSOR_NIGHT_TH           245         // Night mode threshold
 #define LIGHT_SENSOR_MAX_VALUE          (255 - (255 - LIGHT_SENSOR_NIGHT_TH))
 #define LIGHT_SENSOR_DEFAULT_CORRECTION 0
@@ -248,8 +248,16 @@ inline void displayDigits() {
 
   // auto dimming, skip lighting for some cycles
   if (display_counter % lightval < NUMBER_OF_DIGITS) {
+    uint8_t tmp = displayBuffer[digit];
+    
+    #ifdef REDUCE_DOTS_BRIGHTNESS
+    if (display_counter < 10 * NUMBER_OF_DIGITS) {
+      tmp &= dotsDisplayBuffer[digit];
+    }
+    #endif
+    
     // fill digits
-    LED_SEGMENT_PORT = displayBuffer[digit];
+    LED_SEGMENT_PORT = tmp;
     // issue #32, fix for newer sdcc versions which are using non-atomic port
     // access
     LED_DIGITS_PORT &= ~((1 << LED_DIGITS_PORT_BASE) << digit);

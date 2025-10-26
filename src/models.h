@@ -61,6 +61,7 @@ This file defines configurations for clock models.
 #define WITHOUT_H12_24_SWITCH
 #define NUMBER_OF_DEBUG_SCREENS 1
 #define WITH_DEBUG_SCREENS
+#define REDUCE_DOTS_BRIGHTNESS
 
 #elif defined(MOD6_MIN)
 // 6 digits (HH:mm:ss), all features are off, v1
