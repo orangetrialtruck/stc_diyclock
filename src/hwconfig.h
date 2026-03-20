@@ -94,6 +94,25 @@
 #define NUMBER_OF_DIGITS 4
 #endif
 
+// Mask to activate one digit (active LOW)
+#ifdef SIX_DIGITS
+const uint8_t led_digit_mask[6] = {
+    ~((1 << LED_DIGITS_PORT_BASE) << 0),
+    ~((1 << LED_DIGITS_PORT_BASE) << 1),
+    ~((1 << LED_DIGITS_PORT_BASE) << 2),
+    ~((1 << LED_DIGITS_PORT_BASE) << 3),
+    ~((1 << LED_DIGITS_PORT_BASE) << 4),
+    ~((1 << LED_DIGITS_PORT_BASE) << 5)
+  };
+#else
+const uint8_t led_digit_mask[4] = {
+    ~((1 << LED_DIGITS_PORT_BASE) << 0),
+    ~((1 << LED_DIGITS_PORT_BASE) << 1),
+    ~((1 << LED_DIGITS_PORT_BASE) << 2),
+    ~((1 << LED_DIGITS_PORT_BASE) << 3)
+  };
+#endif
+
 // Macro mask to turn off digits
 #ifdef SIX_DIGITS
 #define DIGITS_MASK 0b111111
@@ -101,7 +120,7 @@
 #define DIGITS_MASK 0b1111
 #endif
 
-#define LED_DIGITS_OFF()    ( LED_DIGITS_PORT |= (DIGITS_MASK << LED_DIGITS_PORT_BASE))
+#define LED_DIGITS_OFF()    (LED_DIGITS_PORT |= (DIGITS_MASK << LED_DIGITS_PORT_BASE))
 
 // Macro to turn on single digit
 #define LED_DIGIT_ON(digit) (LED_DIGITS_PORT &= ~((1<<LED_DIGITS_PORT_BASE) << digit))

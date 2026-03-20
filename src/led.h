@@ -12,6 +12,8 @@
 #define LED_BLANK   (LED_a + ('Z' - 'A') + 1)       // All segments are off
 #define LED_DASH    (LED_BLANK + 1)                 // '-'
 #define LED_dp      (LED_DASH + 1)                  // '.'
+#define LED_BLANK_SYMBOL 0b11111111
+#define LED_dp_mask 0b01111111                      // '.' - actual bit mask, 0x7F
 
 #define LED_a       10
 #define LED_b       (LED_a + ('B' - 'A'))
@@ -166,11 +168,28 @@ inline void updateDisplayBuffer() {
     }
 
     if (isDotVisible(n)) {
-      tmp &= 0x7F;
+      tmp &= LED_dp_mask;
     }
 
     displayBuffer[n] = tmp;
   }
 }
 
+#ifdef SIX_DIGITS
+const uint8_t dot_masks_table[6] = {
+    LED_dp_mask,
+    LED_dp_mask,
+    LED_dp_mask,
+    LED_dp_mask,
+    LED_dp_mask,
+    LED_dp_mask
+  };
+#else
+const uint8_t dot_masks_table[4] = {
+    LED_dp_mask,
+    LED_dp_mask,
+    LED_dp_mask,
+    LED_dp_mask
+  };
+#endif
 #endif // #define LED_H
