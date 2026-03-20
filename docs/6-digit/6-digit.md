@@ -130,7 +130,7 @@ The case is made from 3mm thick clear acrylic using laser cutting. It consist of
 
   For the second version, a wooden case has been made.
 
-![Front](v2/images/6d-front.JPG)
+![Front](v2/images/6d-front.jpg)
 
-![Back](v2/images/6d-back.JPG)
+![Back](v2/images/6d-back.jpg)
 </details>

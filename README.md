@@ -25,8 +25,11 @@ This repo is forked from [https://github.com/zerog2k/stc_diyclock](https://githu
 - [New firmware operation flow  (4 digit)](docs/4-digit-clock-operational-flow.png)
 
 ## Changelog
-### June 2025:
-- Added the ability to adjust display brightness
+### March 2026
+- Replaced linear PWM with 5-bit BAM (Bit Angle Modulation)
+- High-Frequency display refresh (20 kHz)
+- Optimized display driver
+- Independent dot brightness control
 
 ### August 2025:
 - BCD (Binary-coded decimal) clock

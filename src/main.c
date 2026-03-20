@@ -32,39 +32,55 @@
 #include "event.h"
 #include "buttonmonitor.h"
 
-// When defined, all symbols are shown in a loop instead of time
+// When defined, all symbols are shown in a loop
 // #define SYMBOLS_TEST
 
 #ifdef SYMBOLS_TEST
 #define WITHOUT_INACTIVITY_TIMER
 #endif
 
-#define BRIGHTNESS_HIGH_DEFAULT_VALUE   0x01
-#define BRIGHTNESS_LOW_DEFAULT_VALUE    0x24
-#define BRIGHTNESS_LOW_MAX_VALUE        0x46
-#define BRIGHTNESS_NIGHT_DEFAULT_VALUE  0x34
-#define BRIGHTNESS_NIGHT_MAX_VALUE      0x71
-#define LIGHT_SENSOR_NIGHT_TH           245         // Night mode threshold
-#define LIGHT_SENSOR_MAX_VALUE          (255 - (255 - LIGHT_SENSOR_NIGHT_TH))
+#define PWM_MAX 32
+#define DIGITS_MIN_BRIGHTNESS_MIN_VAL 1
+#define DIGITS_MIN_BRIGHTNESS_MAX_VAL 10
+#define DOTS_MIN_BRIGHTNESS_MIN_VAL 1
 #define LIGHT_SENSOR_DEFAULT_CORRECTION 0
 #define LIGHT_SENSOR_MAX_CORRECTION     50
 
-uint8_t lightSensorCorrection = LIGHT_SENSOR_DEFAULT_CORRECTION;
-uint8_t brightnessHigh = BRIGHTNESS_HIGH_DEFAULT_VALUE;
-uint8_t brightnessLow = BRIGHTNESS_LOW_DEFAULT_VALUE;
-uint8_t brightnessNight = BRIGHTNESS_NIGHT_DEFAULT_VALUE;
+uint8_t brightness = 10;          // 1..PWM_MAX
+uint8_t brightness_min = DIGITS_MIN_BRIGHTNESS_MIN_VAL;
+uint8_t dots_brightness = 10;     // 1..PWM_MAX
 
-uint8_t count;     // main loop counter
-uint8_t temp;      // temperature sensor value
-uint8_t lightval;  // light sensor value
+// Bit Angle Modulation
+// 5 bits = 32 levels
+#define BAM_NUMBER_OF_PHASES 5
+/*
+| bam_phase | Brightness bit | Weight (duration in ticks) | On/Off (for brightness = 13, 0b01101) |
+| --------- | -------------- | -------------------------- | ------------------------------------- |
+| 0         | b0 (LSB)       | 1 tick                     | On  (1)                               |
+| 1         | b1             | 2 ticks                    | Off (0)                               |
+| 2         | b2             | 4 ticks                    | On  (1)                               |
+| 3         | b3             | 8 ticks                    | On  (1)                               |
+| 4         | b4 (MSB)       | 16 ticks                   | Off (0)                               |
+
+bam_phase → the current phase number (0-indexed)
+Brightness bit → which bit of the 5-bit brightness value is controlling this phase
+Weight → how many timer ticks this phase lasts (doubles each higher bit)
+On/Off → whether the segments should be lit in this phase for a brightness value of 13 (0b01101)
+*/
+volatile uint8_t bam_phase = 0;
+volatile uint8_t bam_tick = 0;    // phase counter
+
+uint8_t lightSensorCorrection = LIGHT_SENSOR_DEFAULT_CORRECTION;
+
+uint8_t count;          // main loop counter
+uint8_t temperature;    // temperature sensor value
 uint8_t previous_second = 0;
 
-volatile uint8_t display_counter;
-volatile int8_t counter_10ms;
-volatile int8_t counter_100ms;
-volatile int8_t counter_500ms;
-volatile int8_t counter_1sec;
-volatile int8_t counter_blinker_slow;
+volatile uint8_t counter_10ms;
+volatile uint8_t counter_100ms;
+volatile uint8_t counter_500ms;
+volatile uint8_t counter_1sec;
+volatile uint8_t counter_blinker_slow;
 #if !defined(WITHOUT_INACTIVITY_TIMER)
 // Contains the number of seconds that have passed since any button was pressed
 volatile int8_t counter_inactivity;
@@ -241,21 +257,52 @@ inline void timer100ms() {
 }
 
 inline void displayDigits() {
-  uint8_t digit = display_counter % (uint8_t)NUMBER_OF_DIGITS;
+  static uint8_t digit = 0;
 
-  // turn off all digits, set high
+  uint8_t segment = displayBuffer[digit];
+  uint8_t dotMask = ~dot_masks_table[digit];
+
   LED_DIGITS_OFF();
 
-  // auto dimming, skip lighting for some cycles
-  if (display_counter % lightval < NUMBER_OF_DIGITS) {
-    // fill digits
-    LED_SEGMENT_PORT = displayBuffer[digit];
-    // issue #32, fix for newer sdcc versions which are using non-atomic port
-    // access
-    LED_DIGITS_PORT &= ~((1 << LED_DIGITS_PORT_BASE) << digit);
+  uint8_t out = LED_BLANK_SYMBOL;
+  uint8_t bam_mask = (1 << bam_phase);
+
+  // Segments
+  if (brightness & bam_mask) {
+    out = segment | dotMask;
   }
 
-  display_counter++;
+  // Dots (dimmed)
+  if ((segment & dotMask) == 0) {
+    if (dots_brightness & bam_mask) {
+      out &= ~dotMask;
+    } else {
+      out |= dotMask;
+    }
+  }
+
+  LED_SEGMENT_PORT = out;
+
+  _nop_; _nop_; // stabilization
+
+  LED_DIGITS_PORT &= led_digit_mask[digit];
+
+  // Next digit
+  digit++;
+  if (digit >= NUMBER_OF_DIGITS) {
+    digit = 0;
+
+    // BAM phase control
+    bam_tick++;
+    if (bam_tick >= (1 << bam_phase)) {
+      bam_tick = 0;
+      bam_phase++;
+
+      if (bam_phase >= BAM_NUMBER_OF_PHASES) {
+        bam_phase = 0;
+      }
+    }
+  }
 }
 
 inline void checkButtons() {
@@ -310,7 +357,7 @@ void timer0_isr() __interrupt(1) __using(1) {
   displayDigits();
 
   // 100/sec: 10 ms
-  if (counter_10ms == 100) {
+  if (counter_10ms >= 200) {  // 200 * 50us = 10ms
     counter_10ms = 0;
     timer10ms();
   }
@@ -318,10 +365,11 @@ void timer0_isr() __interrupt(1) __using(1) {
   counter_10ms++; // increment every 0.1ms
 }
 
-// Call timer0_isr() 10000/sec: 0.0001 sec
-// Initialize the timer count so that it overflows after 0.0001 sec
-// THTL = 0x10000 - FOSC / 12 / 10000 = 0x10000 - 92.16 = 65444 = 0xFFA4
-// When 11.0592MHz clock case, set every 100us interruption
+// 11.0592MHz clock
+// THTL = 65536 - (11059200 / 12 / 20000)
+//      = 65536 - 46
+//      = 65490 ≈ 0xFFD2
+// 20000 Hz (50 50us)
 void timer0Init(void) // 100us @ 11.0592MHz
 {
   // refer to section 7 of datasheet: STC15F2K60S2-en2.pdf
@@ -329,7 +377,7 @@ void timer0Init(void) // 100us @ 11.0592MHz
   // AUXR = 0;    // default: traditional 8051 timer frequency of FOSC / 12
   // Initial values of TL0 and TH0 are stored in hidden reload registers: RL_TL0
   // and RL_TH0
-  TL0 = 0xA4; // Initial timer value
+  TL0 = 0xD2; // Initial timer value
   TH0 = 0xFF; // Initial timer value
   TF0 = 0;    // Clear overflow flag
   TR0 = 1;    // Timer0 start run
@@ -705,30 +753,9 @@ inline void displayLightSensorCorrection() {
 #endif
 }
 
-inline void displayBrightnessHigh() {
+inline void displayMinBrightness() {
 #ifdef BCD_DISPLAY
   fillDigit(1, BCD_DISPLAY_SETTINGS_5);
-#else
-  fillDigit(0, LED_b);
-  fillDigit(1, LED_h);
-#endif
-  
-  #ifdef SIX_DIGITS
-  if (blinker_fast || S1_LONG) {
-    fillDigit(4, brightnessHigh  >> 4);
-    fillDigit(5, brightnessHigh & 0x0F);
-  }
-  #else
-  if (blinker_fast || S1_LONG) {
-    fillDigit(2, brightnessHigh  >> 4);
-    fillDigit(3, brightnessHigh & 0x0F);
-  }
-  #endif
-}
-
-inline void displayBrightnessLow() {
-#ifdef BCD_DISPLAY
-  fillDigit(1, BCD_DISPLAY_SETTINGS_6);
 #else
   fillDigit(0, LED_b);
   fillDigit(1, LED_l);
@@ -736,34 +763,13 @@ inline void displayBrightnessLow() {
 
   #ifdef SIX_DIGITS
   if (blinker_fast || S1_LONG) {
-    fillDigit(4, brightnessLow  >> 4);
-    fillDigit(5, brightnessLow & 0x0F);
+    fillDigit(4, brightness_min  >> 4);
+    fillDigit(5, brightness_min & 0x0F);
   }
   #else
   if (blinker_fast || S1_LONG) {
-    fillDigit(2, brightnessLow  >> 4);
-    fillDigit(3, brightnessLow & 0x0F);
-  }
-  #endif
-}
-
-inline void displayBrightnessNight() {
-#ifdef BCD_DISPLAY
-  fillDigit(1, BCD_DISPLAY_SETTINGS_7);
-#else
-  fillDigit(0, LED_b);
-  fillDigit(1, LED_n);
-#endif
-
-  #ifdef SIX_DIGITS
-  if (blinker_fast || S1_LONG) {
-    fillDigit(4, brightnessNight  >> 4);
-    fillDigit(5, brightnessNight & 0x0F);
-  }
-  #else
-  if (blinker_fast || S1_LONG) {
-    fillDigit(2, brightnessNight  >> 4);
-    fillDigit(3, brightnessNight & 0x0F);
+    fillDigit(2, brightness_min  >> 4);
+    fillDigit(3, brightness_min & 0x0F);
   }
   #endif
 }
@@ -840,8 +846,8 @@ inline void displayYear() {
 
 inline void displayTemperature() {
 #ifdef SIX_DIGITS
-  fillDigit(2, ds_int2bcd_tens(temp));
-  fillDigit(3, ds_int2bcd_ones(temp));
+  fillDigit(2, ds_int2bcd_tens(temperature));
+  fillDigit(3, ds_int2bcd_ones(temperature));
   fillDot(4, 1);
 #ifdef BCD_DISPLAY
   if (CONF_C_F) {
@@ -864,9 +870,9 @@ inline void displayTemperature() {
 
 #ifdef WITH_DEBUG_SCREENS
 inline void displayDebugLightSensorADCValue() {
-  // photoresistor adc and lightval
+  // photoresistor adc and brightness
   uint8_t adc = getADCResult8(ADC_LIGHT);
-  uint8_t lv = lightval;
+  uint8_t lv = brightness;
   fillDigit(0, adc >> 4);
   fillDigit(1, adc & 0x0F);
   fillDigit(2, lv >> 4);
@@ -970,23 +976,15 @@ inline void displayScreen() {
     break;
 #endif
 
-  case DM_LIGHT_SENSOR_CORRECTION:
-    displayLightSensorCorrection();
-    break;
+case DM_LIGHT_SENSOR_CORRECTION:
+  displayLightSensorCorrection();
+  break;
 
-    case DM_BRIGHTNESS_HIGH:
-    displayBrightnessHigh();
-    break;
+case DM_MIN_BRIGHTNESS:
+  displayMinBrightness();
+  break;
 
-  case DM_BRIGHTNESS_LOW:
-    displayBrightnessLow();
-    break;
-
-  case DM_BRIGHTNESS_NIGHT:
-    displayBrightnessNight();
-    break;
-
-#if !defined(SIX_DIGITS)
+  #if !defined(SIX_DIGITS)
   case DM_SECONDS:
     displaySeconds();
     break;
@@ -1091,40 +1089,36 @@ inline void adjustDisplayMode() {
 //
 
 inline void processADCValues() {
-  if (count % (uint8_t)4 == 0) {
-    temp = getTemperature(getADCResult(ADC_TEMP));
+  temperature = getTemperature(getADCResult(ADC_TEMP));
 
-    /*
-    Auto-dimming
-     The light sensor (getADCResult8(ADC_LIGHT) function)
-     returns 0 at maximum light and 255 in darkness.
+  static uint8_t filtered = 0;
+  uint8_t adcLight = getADCResult8(ADC_LIGHT);
 
-    The lightval must must be in the following range:
-     LIGHTVAL_LOWEST_VALUE - highest brightness (default value: 4)
-     LIGHTVAL_DARKEST_VALUE - lowest brightness (it's currently set to 32,
-     may be lower, but the digits will flicker)
-    */
-
-    uint8_t adcLight = getADCResult8(ADC_LIGHT);
-    uint8_t lightvalMax = brightnessLow;
-
-    if (adcLight > lightSensorCorrection) {
-      adcLight -= lightSensorCorrection;
-    } else {
-      adcLight = 0;
-    }
-
-    // Check for the night mode
-    if (adcLight >= LIGHT_SENSOR_NIGHT_TH - lightSensorCorrection) {
-      lightvalMax = brightnessNight;
-    }
-
-    // Calculate the lightval
-    lightval = adcLight * lightvalMax / LIGHT_SENSOR_MAX_VALUE;
-    if (lightval < brightnessHigh) {
-      lightval = brightnessHigh;
-    }
+  if (adcLight > lightSensorCorrection) {
+    adcLight -= lightSensorCorrection;
+  } else {
+    adcLight = 0;
   }
+
+  // IIR filter (1/8)
+  filtered += (adcLight - filtered) >> 3;
+  uint8_t inverted = 255 - filtered;
+  uint16_t b = (uint16_t)inverted * inverted >> 8;
+
+  brightness = b >> 3; // 0..31
+
+  if (brightness < brightness_min) {
+    brightness = brightness_min;
+  }
+
+  #ifdef REDUCE_DOTS_BRIGHTNESS
+  dots_brightness = brightness >> 2;
+  if (dots_brightness < DOTS_MIN_BRIGHTNESS_MIN_VAL) {
+    dots_brightness = DOTS_MIN_BRIGHTNESS_MIN_VAL;
+  }
+  #else
+  dots_brightness = brightness;
+  #endif
 }
 
 //
@@ -1453,58 +1447,18 @@ inline void handleButtonsLightSensorCorrection(enum Event ev) {
       lightSensorCorrection = LIGHT_SENSOR_MAX_CORRECTION;
     }
   } else if (ev == EV_S2_SHORT) {
-    buttons_mode = K_BRIGHTNESS_HIGH;
+    buttons_mode = K_MIN_BRIGHTNESS;
   }
 }
 
-inline void handleButtonsBrightnessHigh(enum Event ev) {  
-  display_mode = DM_BRIGHTNESS_HIGH;
-  
-  if ((ev == EV_S1_SHORT) || (S1_LONG && blinker_fast)) {
-    if (brightnessHigh + 1 > brightnessLow) {
-      brightnessHigh = BRIGHTNESS_HIGH_DEFAULT_VALUE;
-    } else {
-      brightnessHigh++;
-    }
-  } else if (S2_LONG && blinker_fast) {
-    if (brightnessHigh > BRIGHTNESS_HIGH_DEFAULT_VALUE) {
-      brightnessHigh--;
-    } else {
-      brightnessHigh = brightnessLow - 1;
-    }    
-  } else if (ev == EV_S2_SHORT) {
-    buttons_mode = K_BRIGHTNESS_LOW;
-  }
-}
+inline void handleButtonsMinBrightness(enum Event ev) {  
+  display_mode = DM_MIN_BRIGHTNESS;
 
-inline void handleButtonsBrightnessLow(enum Event ev) {  
-  display_mode = DM_BRIGHTNESS_LOW;
-  
   if ((ev == EV_S1_SHORT) || (S1_LONG && blinker_fast)) {
-    if (brightnessLow + 1 > BRIGHTNESS_LOW_MAX_VALUE) {
-      brightnessLow = brightnessHigh;
+    if (brightness_min + 1 > DIGITS_MIN_BRIGHTNESS_MAX_VAL) {
+      brightness_min = DIGITS_MIN_BRIGHTNESS_MIN_VAL;
     } else {
-      brightnessLow++;
-    }    
-  } else if (S2_LONG && blinker_fast) {
-    if (brightnessLow + 1 > brightnessHigh) {
-      brightnessLow--;
-    } else {
-      brightnessLow = brightnessHigh + 1;
-    }    
-  } else if (ev == EV_S2_SHORT) {
-    buttons_mode = K_BRIGHTNESS_NIGHT;
-  }
-}
-
-inline void handleButtonsBrightnessNight(enum Event ev) {  
-  display_mode = DM_BRIGHTNESS_NIGHT;
-  
-  if ((ev == EV_S1_SHORT) || (S1_LONG && blinker_fast)) {
-    if (brightnessNight + 1 > BRIGHTNESS_NIGHT_MAX_VALUE) {
-      brightnessNight = brightnessHigh;
-    } else {
-      brightnessNight++;
+      brightness_min++;
     }    
   } else if (ev == EV_S2_SHORT) {
     saveSettings();
@@ -1831,19 +1785,11 @@ void handleButtonEvents(enum Event ev) {
     handleButtonsLightSensorCorrection(ev);
     break;
 
-  case K_BRIGHTNESS_HIGH:
-    handleButtonsBrightnessHigh(ev);
+  case K_MIN_BRIGHTNESS:
+    handleButtonsMinBrightness(ev);
     break;
 
-  case K_BRIGHTNESS_LOW:
-    handleButtonsBrightnessLow(ev);
-    break;
-
-  case K_BRIGHTNESS_NIGHT:
-    handleButtonsBrightnessNight(ev);
-    break;
-
-  case K_TEMP_DISP:
+    case K_TEMP_DISP:
     handleButtonsTemperature(ev);
     break;
 
@@ -1973,32 +1919,20 @@ void processNmeaUpdate() {
 //
 
 inline void loadBrightnessSettings() {
-  brightnessHigh = (int8_t)IapReadByte(IAP_BRIGHTNESS_HIGH);
-  brightnessLow = IapReadByte(IAP_BRIGHTNESS_LOW);
-  brightnessNight = IapReadByte(IAP_BRIGHTNESS_NIGHT);
+  brightness_min = IapReadByte(IAP_MIN_BRIGHTNESS);
   lightSensorCorrection = IapReadByte(IAP_LIGHT_SENSOR_CORR);
+
+  if (brightness_min == 0xff || brightness_min > DIGITS_MIN_BRIGHTNESS_MAX_VAL) {
+    brightness_min = DIGITS_MIN_BRIGHTNESS_MIN_VAL;
+  }
   
-  if (brightnessHigh == 0xff) {
-    brightnessHigh = BRIGHTNESS_HIGH_DEFAULT_VALUE;
-  }
-
-  if (brightnessLow == 0xff) {
-    brightnessLow = BRIGHTNESS_LOW_DEFAULT_VALUE;
-  }
-
-  if (brightnessNight == 0xff) {
-    brightnessNight = BRIGHTNESS_NIGHT_DEFAULT_VALUE;
-  }
-
   if (lightSensorCorrection == 0xff) {
     lightSensorCorrection = LIGHT_SENSOR_DEFAULT_CORRECTION;
   }
 }
 
 inline void saveBrightnessSettings() {
-  IapProgramByte(IAP_BRIGHTNESS_HIGH, brightnessHigh);
-  IapProgramByte(IAP_BRIGHTNESS_LOW, brightnessLow);
-  IapProgramByte(IAP_BRIGHTNESS_NIGHT, brightnessNight);
+  IapProgramByte(IAP_MIN_BRIGHTNESS, brightness_min);
   IapProgramByte(IAP_LIGHT_SENSOR_CORR, lightSensorCorrection);
 }
 
@@ -2113,23 +2047,3 @@ int main() {
 #endif
   }
 }
-
-/*
-void _delay_ms(uint8_t ms)
-{
-    // delay function, tuned for 11.092 MHz clock
-    // optimized to assembler
-    ms; // keep compiler from complaining?
-    __asm;
-        ; dpl contains ms param value
-    delay$:
-        mov	b, #8   ; i
-    outer$:
-        mov	a, #243    ; j
-    inner$:
-        djnz acc, inner$
-        djnz b, outer$
-        djnz dpl, delay$
-    __endasm;
-}
-*/

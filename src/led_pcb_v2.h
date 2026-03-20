@@ -14,6 +14,7 @@
 #define LED_dp          (LED_DASH + 1)            // '.'
 #define LED_dp_mask     0b01111111                // '.' - actual bit mask
 #define LED_dp_mask_rev 0b10111111                // '.' - actual bit mask
+#define LED_BLANK_SYMBOL 0b11111111
 
 #define LED_a       10
 #define LED_b       (LED_a + ('B' - 'A'))
@@ -177,5 +178,23 @@ inline void updateDisplayBuffer() {
     displayBuffer[n] = tmp;
   }
 }
+
+#ifdef SIX_DIGITS
+const uint8_t dot_masks_table[6] = {
+    LED_dp_mask,
+    LED_dp_mask,
+    LED_dp_mask_rev,
+    LED_dp_mask,
+    LED_dp_mask_rev,
+    LED_dp_mask
+  };
+#else
+const uint8_t dot_masks_table[4] = {
+    LED_dp_mask,
+    LED_dp_mask,
+    LED_dp_mask_rev,
+    LED_dp_mask
+  };
+#endif
 
 #endif // #define LED_PCB_V2_H
