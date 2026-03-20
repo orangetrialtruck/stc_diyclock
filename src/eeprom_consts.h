@@ -12,9 +12,7 @@
 
 // Brightness settings
 
-#define IAP_BRIGHTNESS_LOW      (IAP_ADDRESS + 4)
-#define IAP_BRIGHTNESS_HIGH     (IAP_ADDRESS + 5)
-#define IAP_BRIGHTNESS_NIGHT    (IAP_ADDRESS + 6)
-#define IAP_LIGHT_SENSOR_CORR   (IAP_ADDRESS + 7)
+#define IAP_MIN_BRIGHTNESS      (IAP_ADDRESS + 4)
+#define IAP_LIGHT_SENSOR_CORR   (IAP_ADDRESS + 5)
 
 #endif // #define EEPROM_CONSTS_H
