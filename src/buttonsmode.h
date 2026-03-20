@@ -25,9 +25,6 @@ enum ButtonsMode {
 #endif
 
   K_LIGHT_SENSOR_CORRECTION,
-  K_BRIGHTNESS_LOW,
-  K_BRIGHTNESS_HIGH,
-  K_BRIGHTNESS_NIGHT,
 
 #if !defined(SIX_DIGITS)
   K_SEC_DISP,

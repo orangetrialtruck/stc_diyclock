@@ -14,6 +14,7 @@
 #define LED_dp          (LED_DASH + 1)            // '.'
 #define LED_dp_mask     0b01111111                // '.' - actual bit mask
 #define LED_dp_mask_rev 0b10111111                // '.' - actual bit mask
+#define LED_BLANK_SYMBOL 0b11111111
 
 #define LED_a       10
 #define LED_b       (LED_a + ('B' - 'A'))
@@ -140,9 +141,6 @@ uint8_t dotsBuffer;
 uint8_t frameBuffer[NUMBER_OF_DIGITS];
 // Each item contains a symbol to display
 uint8_t displayBuffer[NUMBER_OF_DIGITS];
-#ifdef REDUCE_DOTS_BRIGHTNESS
-uint8_t dotsDisplayBuffer[NUMBER_OF_DIGITS];
-#endif
 
 inline uint8_t isDotVisible(uint8_t pos) { return dotsBuffer & (1 << pos); }
 
@@ -159,9 +157,6 @@ void clearFrameBuffer() {
   dotsBuffer = 0;
   for (uint8_t n = 0; n != NUMBER_OF_DIGITS; n++) {
     frameBuffer[n] = LED_BLANK;
-    #ifdef REDUCE_DOTS_BRIGHTNESS
-    dotsDisplayBuffer[n] = ledSymbols[LED_BLANK];
-    #endif
   }
 }
 
@@ -180,14 +175,18 @@ inline void updateDisplayBuffer() {
 
     uint8_t tmp = symbols[frameBuffer[n]];
     if (isDotVisible(n)) {
-#ifdef REDUCE_DOTS_BRIGHTNESS
-      dotsDisplayBuffer[n] = dotMask;
-#else
       tmp &= dotMask;
-#endif
     }
 
     displayBuffer[n] = tmp;
+  }
+}
+
+inline uint8_t getDotMask(uint8_t index) {
+  if (2 == index || 4 == index) {
+    return LED_dp_mask_rev;
+  } else {
+    return LED_dp_mask;
   }
 }
 

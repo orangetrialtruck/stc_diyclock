@@ -14,7 +14,8 @@
 #define LED_BLANK   (LED_a + ('F' - 'A') + 1)       // All segments are off
 #define LED_DASH    (LED_BLANK + 1)                 // '-'
 #define LED_dp      (LED_DASH + 1)                  // '.'
-#define LED_dp_mask 0b01101111                      // '.' - actual bit mask
+#define LED_BLANK_SYMBOL 0b11111111
+#define LED_dp_mask  0b01101111                      // '.' - actual bit mask
 
 #define LED_a       10
 #define LED_b       (LED_a + ('B' - 'A'))
@@ -85,6 +86,10 @@ inline void updateDisplayBuffer() {
 
     displayBuffer[n] = tmp;
   }
+}
+
+inline uint8_t getDotMask(uint8_t index) {
+  return LED_dp_mask;
 }
 
 #endif // #define LED_BCD_H

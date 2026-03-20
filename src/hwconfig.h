@@ -94,6 +94,24 @@
 #define NUMBER_OF_DIGITS 4
 #endif
 
+#ifdef SIX_DIGITS
+const uint8_t led_digit_mask[6] = {
+    ~((1 << LED_DIGITS_PORT_BASE) << 0),
+    ~((1 << LED_DIGITS_PORT_BASE) << 1),
+    ~((1 << LED_DIGITS_PORT_BASE) << 2),
+    ~((1 << LED_DIGITS_PORT_BASE) << 3),
+    ~((1 << LED_DIGITS_PORT_BASE) << 4),
+    ~((1 << LED_DIGITS_PORT_BASE) << 5)
+  };
+#else
+const uint8_t led_digit_mask[4] = {
+    ~((1 << LED_DIGITS_PORT_BASE) << 0),
+    ~((1 << LED_DIGITS_PORT_BASE) << 1),
+    ~((1 << LED_DIGITS_PORT_BASE) << 2),
+    ~((1 << LED_DIGITS_PORT_BASE) << 3)
+  };
+#endif
+
 // Macro mask to turn off digits
 #ifdef SIX_DIGITS
 #define DIGITS_MASK 0b111111
