@@ -40,15 +40,15 @@
 #endif
 
 #define PWM_MAX 32
-#define DIGITS_MIN_BRIGHTNESS_MIN_VAL 4
+#define DIGITS_MIN_BRIGHTNESS_MIN_VAL 1
 #define DIGITS_MIN_BRIGHTNESS_MAX_VAL 10
-#define DOTS_MIN_BRIGHTNESS_MIN_VAL 2
+#define DOTS_MIN_BRIGHTNESS_MIN_VAL 1
 #define LIGHT_SENSOR_DEFAULT_CORRECTION 0
 #define LIGHT_SENSOR_MAX_CORRECTION     50
 
-uint8_t brightness = 10;          // 2..PWM_MAX
+uint8_t brightness = 10;          // 1..PWM_MAX
 uint8_t brightness_min = DIGITS_MIN_BRIGHTNESS_MIN_VAL;
-uint8_t dots_brightness = 10;     // 2..PWM_MAX
+uint8_t dots_brightness = 10;     // 1..PWM_MAX
 
 // Bit Angle Modulation
 // 5 bits = 32 levels
